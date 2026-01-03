@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
 
 # Set the project name
-project(testRunner)
+project(testTester)
 
 # Enable testing
 enable_testing()
@@ -13,41 +13,47 @@ set(CMAKE_CXX_EXTENSIONS False)
   
 # Add sub directories
 add_subdirectory(Moira)
-add_subdirectory(Runner/Binutils)
-add_subdirectory(Runner/Musashi)
+add_subdirectory(Tester/Binutils)
 
-# Add the executable
-add_executable(testRunner
-Runner/main.cpp
-Runner/Testrunner.cpp
-Runner/TestCPU.cpp
-Runner/musashi.cpp
-Runner/Sandbox.cpp
-Runner/Randomizer.cpp
+
+#tester
+set(TESTER_SOURCES
+  Tester/main.cpp
+  Tester/Tester.cpp
+  Tester/TestCPU.cpp
 )
-target_link_libraries(testRunner binutils)
-target_link_libraries(testRunner moira)
-target_link_libraries(testRunner musashi)
 
-# Add compile options
+add_executable(testTester ${TESTER_SOURCES})
+add_executable(testTester_release ${TESTER_SOURCES})
+
+
+foreach(target_name IN ITEMS testTester testTester_release)
+  target_link_libraries(${target_name} PRIVATE binutils moira)
+
+  if(MSVC)
+    target_compile_options(${target_name} PRIVATE /wd4100 /wd4201 /wd4324 /wd4458)
+  else()
+    target_compile_options(${target_name} PRIVATE -Wno-unused-parameter)
+    target_compile_options(${target_name} PRIVATE -Wno-unused-variable)
+    target_compile_options(${target_name} PRIVATE -Wno-gnu-anonymous-struct)
+    target_compile_options(${target_name} PRIVATE -Wno-nested-anon-types)
+  endif()
+
+  target_include_directories(${target_name} PUBLIC
+    ${CMAKE_SOURCE_DIR}/.
+    ${CMAKE_SOURCE_DIR}/Moira
+    ${CMAKE_SOURCE_DIR}/Tester
+    ${CMAKE_SOURCE_DIR}/Tester/Binutils
+  )
+endforeach()
+
+# Release-flavoured target tweaks
+target_compile_definitions(testTester_release PRIVATE NDEBUG)
 if(MSVC)
-  target_compile_options(testRunner PUBLIC /wd4100 /wd4201 /wd4324 /wd4458)
+  target_compile_options(testTester_release PRIVATE /O2)
 else()
-  target_compile_options(testRunner PUBLIC -Wno-unused-parameter)
-  target_compile_options(testRunner PUBLIC -Wno-unused-variable)
-  target_compile_options(testRunner PUBLIC -Wno-gnu-anonymous-struct)
-  target_compile_options(testRunner PUBLIC -Wno-nested-anon-types)
+  target_compile_options(testTester_release PRIVATE -O3)
 endif()
 
-# Add include paths
-target_include_directories(testRunner PUBLIC
-
-${CMAKE_SOURCE_DIR}/.
-${CMAKE_SOURCE_DIR}/Moira
-${CMAKE_SOURCE_DIR}/Runner
-${CMAKE_SOURCE_DIR}/Runner/Binutils
-${CMAKE_SOURCE_DIR}/Runner/Musashi
-)
-
 # Add tests
-add_test(UnitTest testRunner)
+add_test(UnitTest testTester)
